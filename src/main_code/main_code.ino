@@ -1,17 +1,18 @@
 //Buttons
-const int switchUpPin = 7;
-const int switchDownPin = 8;
-const int offButton = 5;
+//const int offButton = 12;
+const int switchDirection = 12;
+const int switchDownPin = 11;
+const int switchUpPin = 10;
 int offButtonState = HIGH;
 
 //Start and stop LEDs
-const int greenLed = 13;
-const int redLed = 12;
+const int greenLed = 6;
+const int redLed = 5;
 
 //4-bit LED display
-const int clock = 4;
-const int latch = 9;
-const int data = 2;
+const int clock = 7;
+const int latch = 8;
+const int data = 9;
 const int onDisplayTime = 5000;
 int displayState = HIGH;
 const byte value[] = { B11000000, // 0
@@ -36,11 +37,14 @@ const byte digit[] = { B00000001, // left segment
 
 //Motor controls
 const int motorPin = 3;
-unsigned long onTime = 1000;
+const int inOne = 2;
+const int inTwo = 4;
+unsigned long onTime = 2000;
 long offTime = 0;
-const int speed = 250;
+const int speed = 255;
 const int stop = 0;
 int motorState = LOW;
+boolean reverse = false;
 
 //Time controls
 unsigned long previousMillis = 0;
@@ -49,10 +53,13 @@ unsigned long previousMillisDisplayTime = 0;
 void setup()
 {
   pinMode(motorPin, OUTPUT);
+  pinMode(inOne, OUTPUT);
+  pinMode(inTwo, OUTPUT);
   pinMode(greenLed, OUTPUT);
   pinMode(switchUpPin, INPUT_PULLUP);
   pinMode(switchDownPin, INPUT_PULLUP);
-  pinMode(offButton, INPUT_PULLUP);
+  //  pinMode(offButton, INPUT_PULLUP);
+  pinMode(switchDirection, INPUT_PULLUP);
   pinMode(redLed, OUTPUT);
   pinMode(clock, OUTPUT);
   pinMode(latch, OUTPUT);
@@ -62,42 +69,36 @@ void setup()
 
 void loop()
 {
-  onOffToggle();
+//  onOffToggle();
 
-  if (offButtonState == LOW) {
-    unsigned long currentTime = millis();
+  //  if (offButtonState == LOW) {
+  unsigned long currentTime = millis();
 
-    if (digitalRead(switchUpPin) == LOW) {
-      increaseButton();
-      previousMillisDisplayTime = currentTime;
-    }
-    if (digitalRead(switchDownPin) == LOW) {
-      decreaseButton();
-      previousMillisDisplayTime = currentTime;
-    }
-
-    motorToggle(currentTime);
-
-    if (displayState == HIGH && (currentTime - previousMillisDisplayTime <= onDisplayTime)) {
-      analyzeLedOutput(offTime / 1000); //Updating LED display during ON time
-    } else {
-      displayState = LOW;
-      analyzeLedOutput(-1); //Turning LED display OFF until button is pressed
-    }
+  if (digitalRead(switchUpPin) == LOW) {
+    increaseButton();
+    previousMillisDisplayTime = currentTime;
   }
-  else {
-    turnOff(); //turning everything off
+  if (digitalRead(switchDownPin) == LOW) {
+    decreaseButton();
+    previousMillisDisplayTime = currentTime;
   }
-}
+  if (digitalRead(switchDirection) == LOW) {
+    reverse = !reverse;
+    delay(200);
+  }
 
-void onOffToggle() {
-  if (digitalRead(offButton) == LOW && offButtonState == HIGH) {
-    offButtonState = LOW;
-    delay(300);
-  } else if (digitalRead(offButton) == LOW && offButtonState == LOW) {
-    offButtonState = HIGH;
-    delay(300);
+  motorToggle(currentTime);
+
+  if (displayState == HIGH && (currentTime - previousMillisDisplayTime <= onDisplayTime)) {
+    analyzeLedOutput(offTime / 1000); //Updating LED display during ON time
+  } else {
+    displayState = LOW;
+    analyzeLedOutput(-1); //Turning LED display OFF until button is pressed
   }
+  //  }
+  //  else {
+  //    turnOff(); //turning everything off
+  //  }
 }
 
 void turnOff() {
@@ -108,11 +109,23 @@ void turnOff() {
   analyzeLedOutput(-1);
 }
 
+//void onOffToggle() {
+//  if (digitalRead(offButton) == LOW && offButtonState == HIGH) {
+//    offButtonState = LOW;
+//    delay(300);
+//  } else if (digitalRead(offButton) == LOW && offButtonState == LOW) {
+//    offButtonState = HIGH;
+//    delay(300);
+//  }
+//}
+
 void motorToggle (unsigned long currentMillis ) {
   if ((motorState == LOW) && (currentMillis - previousMillis >= offTime)) {
     previousMillis = currentMillis;  // Remember the time
     motorState = HIGH;
     analogWrite(motorPin, speed);    // Update motor
+    digitalWrite(inOne, !reverse);
+    digitalWrite(inTwo, reverse);
     digitalWrite(greenLed, HIGH);  //Update Green LED
     digitalWrite(redLed, LOW); //Update Red LED
   } else if ((motorState == HIGH) && (currentMillis - previousMillis >= onTime)) {
