@@ -40,11 +40,17 @@ const int motorPin = 3;
 const int inOne = 2;
 const int inTwo = 4;
 unsigned long onTime = 2000;
-long offTime = 0;
+long offTime = 5000;
 const int speed = 255;
 const int stop = 0;
 int motorState = LOW;
 boolean reverse = false;
+
+//Auto termination
+int autoOff = 0;
+const int trackLength = 33;
+int newLength = 0;
+boolean turnedOff = false;
 
 //Time controls
 unsigned long previousMillis = 0;
@@ -69,60 +75,81 @@ void setup()
 
 void loop()
 {
-//  onOffToggle();
+  onOffToggle();
 
-  //  if (offButtonState == LOW) {
-  unsigned long currentTime = millis();
+  if (offButtonState == LOW) {
+    unsigned long currentTime = millis();
 
-  if (digitalRead(switchUpPin) == LOW) {
-    increaseButton();
-    previousMillisDisplayTime = currentTime;
-  }
-  if (digitalRead(switchDownPin) == LOW) {
-    decreaseButton();
-    previousMillisDisplayTime = currentTime;
-  }
-  if (digitalRead(switchDirection) == LOW) {
-    reverse = !reverse;
-    delay(200);
-  }
+    if (digitalRead(switchUpPin) == LOW) {
+      increaseButton();
+      previousMillisDisplayTime = currentTime;
+    }
+    if (digitalRead(switchDownPin) == LOW) {
+      decreaseButton();
+      previousMillisDisplayTime = currentTime;
+    }
+    if (digitalRead(switchDirection) == LOW) {
+      reverse = !reverse;
+      newLength = autoOff;
+      autoOff = 0;
+      delay(200);
+    }
 
-  motorToggle(currentTime);
+    motorToggle(currentTime);
 
-  if (displayState == HIGH && (currentTime - previousMillisDisplayTime <= onDisplayTime)) {
-    analyzeLedOutput(offTime / 1000); //Updating LED display during ON time
-  } else {
-    displayState = LOW;
-    analyzeLedOutput(-1); //Turning LED display OFF until button is pressed
+    if (displayState == HIGH && (currentTime - previousMillisDisplayTime <= onDisplayTime)) {
+      analyzeLedOutput(offTime / 1000); //Updating LED display during ON time
+    } else {
+      displayState = LOW;
+      analyzeLedOutput(-1); //Turning LED display OFF until button is pressed
+    }
   }
-  //  }
-  //  else {
-  //    turnOff(); //turning everything off
-  //  }
+  else {
+    if (!turnedOff) {
+      turnOff(); //turning everything off
+    }
+  }
 }
 
 void turnOff() {
   analogWrite(motorPin, stop); // Update
   digitalWrite(redLed, LOW); //Update Red LED
   digitalWrite(greenLed, LOW); //Update Green LED
-  offTime = 0; //Reset OFF time
+  offTime = 5000; //Reset OFF time
   analyzeLedOutput(-1);
+  turnedOff = true;
 }
 
-//void onOffToggle() {
-//  if (digitalRead(offButton) == LOW && offButtonState == HIGH) {
-//    offButtonState = LOW;
-//    delay(300);
-//  } else if (digitalRead(offButton) == LOW && offButtonState == LOW) {
-//    offButtonState = HIGH;
-//    delay(300);
-//  }
-//}
+void onOffToggle() {
+  if (newLength != 0 && newLength == autoOff) {
+    offButtonState = HIGH;
+    newLength = 0;
+    autoOff = 0;
+  } else if (autoOff == trackLength) {
+    offButtonState = HIGH;
+    autoOff = 0;
+  }
+  if (offButtonState == HIGH && digitalRead(switchDirection) == LOW) {
+    offButtonState = LOW;
+    delay(200);
+  }
+
+  //  if (digitalRead(offButton) == LOW && offButtonState == HIGH) {
+  //    offButtonState = LOW;
+  //    delay(300);
+  //  } else if (digitalRead(offButton) == LOW && offButtonState == LOW) {
+  //    offButtonState = HIGH;
+  //    delay(300);
+  //  }
+}
 
 void motorToggle (unsigned long currentMillis ) {
   if ((motorState == LOW) && (currentMillis - previousMillis >= offTime)) {
     previousMillis = currentMillis;  // Remember the time
     motorState = HIGH;
+    autoOff++;
+    Serial.println("AutoOff: "); //debug
+    Serial.println(autoOff); //debug
     analogWrite(motorPin, speed);    // Update motor
     digitalWrite(inOne, !reverse);
     digitalWrite(inTwo, reverse);
@@ -132,6 +159,8 @@ void motorToggle (unsigned long currentMillis ) {
     previousMillis = currentMillis;  // Remember the time
     motorState = LOW;
     analogWrite(motorPin, stop);    // Update
+    digitalWrite(inOne, !reverse);
+    digitalWrite(inTwo, reverse);
     digitalWrite(greenLed, LOW); //Update Green LED
     digitalWrite(redLed, HIGH); //Update Red LED
   }
@@ -140,8 +169,8 @@ void motorToggle (unsigned long currentMillis ) {
 void increaseButton () {
   offTime += 5000;
   displayState = HIGH;
-  Serial.println("FIRST IF and offTime: "); //debug
-  Serial.println(offTime / 1000); //debug
+  //  Serial.println("FIRST IF and offTime: "); //debug
+  //  Serial.println(offTime / 1000); //debug
   digitalWrite(switchUpPin, HIGH);
   delay(200);
 }
@@ -149,8 +178,8 @@ void increaseButton () {
 void decreaseButton () {
   offTime -= 5000;
   displayState = HIGH;
-  Serial.println("SECOND IF and offTime: "); //debug
-  Serial.println(offTime / 1000); //debug
+  //  Serial.println("SECOND IF and offTime: "); //debug
+  //  Serial.println(offTime / 1000); //debug
   digitalWrite(switchDownPin, HIGH);
   delay(200);
 }
